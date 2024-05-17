@@ -178,13 +178,17 @@ Sphere scene0_spheres[5] = Sphere[]
 ////////////////
 // Main
 
+in vec2 texCoords;
 out vec4 fragColor;
 
 uniform vec2 resolution;
 uniform uint frameId;
-uniform bool accumulate;
+uniform uint doAccumulate;
+uniform uint frameAccum;
 uniform vec3 cameraPos;
 uniform vec2 cameraAngle;
+
+uniform sampler2D previousFrame;
 
 HitInfo RaySceneIntersection(Ray ray)
 {
@@ -229,6 +233,8 @@ void main()
 {
     float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution.xy;
+    
+    fragColor = vec4(uv, 1.0f, 1.0f);
     
     // Make sure we don't reuse pixelIds from one frame to the next
     uint pixelId = uint(gl_FragCoord.y * resolution.x + gl_FragCoord.x);

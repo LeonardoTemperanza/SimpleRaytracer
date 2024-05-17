@@ -25,10 +25,13 @@ float fullScreenQuad[] =
 };
 
 char* vertexShaderSrc = "#version 400 core\n"
-"in vec3 aPos;\n"
+"in vec3 pos;\n"
+"in vec2 inTexCoords;\n"
+"out vec2 texCoords;\n"
 "void main()\n"
 "{\n"
-"gl_Position = vec4(aPos, 1.0f);\n"
+"gl_Position = vec4(pos, 1.0f);\n"
+"texCoords = inTexCoords;\n"
 "}\n";
 
 char* tex2ScreenShaderSrc = "#version 400 core\n"
@@ -78,8 +81,24 @@ struct
     bool pressedW, pressedA, pressedS, pressedD;
 } typedef Input;
 
+// Global for simplicity
+Input input;
+
+void MouseButtonCallback(GLFWwindow* window, int button, int action, int mode)
+{
+    if(button == GLFW_MOUSE_BUTTON_RIGHT)
+    {
+        if(action == GLFW_PRESS)
+            input.rightClick = true;
+        else if(action == GLFW_RELEASE)
+            input.rightClick = false;
+    }
+}
+
 // Returns shader program
 RenderState InitRendering();
+void ResizeFramebuffers(RenderState* state, int width, int height);
+
 void FirstPersonCamera(Vec3* camPos, Vec2* camRot);
 
 char* LoadEntireFile(const char* fileName);
@@ -99,6 +118,9 @@ int main()
     GLFWwindow* window = glfwCreateWindow(1200, 1000, "Simple Path Tracer", NULL, NULL);
     assert(window);
     
+    // Input callbacks
+    glfwSetMouseButtonCallback(window, MouseButtonCallback);
+    
     glfwMakeContextCurrent(window);
     gladLoadGL();
     //gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -109,9 +131,12 @@ int main()
     // Initialize state
     uint32_t accumulate = true;
     uint32_t frameCount = 0;
+    uint32_t frameAccum = 0; // Frame counter from start of accumulation
     Vec3 camPos = {0};
     Vec2 camRot = {0};
     
+    int prevWidth  = 0;
+    int prevHeight = 0;
     while(!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
@@ -122,11 +147,18 @@ int main()
         // Update state
         FirstPersonCamera(&camPos, &camRot);
         
-        glViewport(0, 0, width, height);
-        //glBindFramebuffer(GL_FRAMEBUFFER, renderState.pingPongFbo[1]);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        if(input.rightClick) frameAccum = 0;
+        accumulate = !input.rightClick;
+        
+        // Change framebuffer size if needed
+        bool changedSize = (prevWidth != width || prevHeight != height);
+        if(changedSize)
+            ResizeFramebuffers(&renderState, width, height);
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, renderState.pingPongFbo[1]);
         
         // Render to framebuffer
+        glViewport(0, 0, width, height);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(renderState.program);
@@ -135,6 +167,7 @@ int main()
         glUniform2f(renderState.resolution, (float)width, (float)height);
         glUniform1ui(renderState.frameId, frameCount);
         glUniform1ui(renderState.accumulate, accumulate);
+        glUniform1ui(renderState.frameAccum, frameAccum);
         glUniform3f(renderState.cameraPos, camPos.x, camPos.y, camPos.z);
         glUniform2f(renderState.cameraAngle, camRot.x, camRot.y);
         glBindTexture(GL_TEXTURE_2D, renderState.pingPongTex[0]);
@@ -142,7 +175,6 @@ int main()
         glBindVertexArray(renderState.vao);
         glDrawArrays(GL_TRIANGLES, 0, sizeof(fullScreenQuad) / (sizeof(float) * 3));
         
-#if 0
         // Render produced image to default framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -152,7 +184,6 @@ int main()
         
         glBindVertexArray(renderState.vao);
         glDrawArrays(GL_TRIANGLES, 0, sizeof(fullScreenQuad) / (sizeof(float) * 3));
-#endif
         
         glfwSwapBuffers(window);
         
@@ -164,7 +195,10 @@ int main()
         renderState.pingPongTex[0] = renderState.pingPongTex[1];
         renderState.pingPongTex[1] = tmp;
         
+        prevWidth  = width;
+        prevHeight = height;
         ++frameCount;
+        ++frameAccum;
     }
     
     glfwDestroyWindow(window);
@@ -191,30 +225,6 @@ RenderState InitRendering()
     
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float))); 
     glEnableVertexAttribArray(1);
-    
-    // FBO for progressive rendering
-    glGenFramebuffers(2, res.pingPongFbo);
-    
-    for(int i = 0; i < 2; ++i)
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, res.pingPongFbo[i]);
-        uint32_t textureColorBuffer;
-        glGenTextures(1, &textureColorBuffer);
-        glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
-        
-        res.pingPongTex[i] = textureColorBuffer;
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-    
-    
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        fprintf(stderr, "Failed to create frame buffer object\n");
-    }
     
     // Compile shaders
     uint32_t vertShader = glCreateShader(GL_VERTEX_SHADER);
@@ -273,6 +283,8 @@ RenderState InitRendering()
     res.tex2ScreenProgram = glCreateProgram();
     glAttachShader(res.tex2ScreenProgram, vertShader);
     glAttachShader(res.tex2ScreenProgram, tex2Screen);
+    glBindAttribLocation(res.tex2ScreenProgram, 0, "pos");
+    glBindAttribLocation(res.tex2ScreenProgram, 1, "inTexCoords");
     glLinkProgram(res.tex2ScreenProgram);
     glGetProgramiv(res.tex2ScreenProgram, GL_LINK_STATUS, &success);
     if(!success)
@@ -286,6 +298,33 @@ RenderState InitRendering()
     glDeleteShader(tex2Screen);
     
     return res;
+}
+
+void ResizeFramebuffers(RenderState* state, int width, int height)
+{
+    glDeleteTextures(2, state->pingPongTex);
+    glDeleteFramebuffers(2, state->pingPongFbo);
+    
+    glGenFramebuffers(2, state->pingPongFbo);
+    for(int i = 0; i < 2; ++i)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, state->pingPongFbo[i]);
+        uint32_t textureColorBuffer;
+        glGenTextures(1, &textureColorBuffer);
+        glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBuffer, 0);
+        
+        state->pingPongTex[i] = textureColorBuffer;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        fprintf(stderr, "Failed to create frame buffer object\n");
+    }
 }
 
 void FirstPersonCamera(Vec3* camPos, Vec2* camRot)

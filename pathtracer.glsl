@@ -233,8 +233,7 @@ void main()
 {
     float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution.xy;
-    
-    fragColor = vec4(uv, 1.0f, 1.0f);
+    fragColor = vec4(uv, 0.0f, 1.0f);
     
     // Make sure we don't reuse pixelIds from one frame to the next
     uint pixelId = uint(gl_FragCoord.y * resolution.x + gl_FragCoord.x);
@@ -273,15 +272,15 @@ void main()
             }
             
             // Ray hit something
-            // Update the ray position and direction
-            currentRay.ori = hit.pos;
             
+            // Choose new ray position and direction
             vec3 cosWeightedRandom = hit.normal + RandomDirection(rngState);
             if(abs(dot(cosWeightedRandom, cosWeightedRandom)) < 0.001f)
                 cosWeightedRandom = hit.normal;
             else
                 cosWeightedRandom = normalize(cosWeightedRandom);
             
+            currentRay.ori = hit.pos;
             currentRay.dir = cosWeightedRandom;
             
             Material mat = hit.mat;
@@ -296,5 +295,13 @@ void main()
     }
     
     finalColor /= float(iters);
-    fragColor = vec4(finalColor, 1.0f);
+    
+    if(doAccumulate != 0)
+    {
+        float weight = 1.0f / float(frameAccum);
+        vec4 prevColor = texture(previousFrame, texCoords);
+        fragColor = prevColor * (1.0f - weight) + vec4(finalColor, 1.0f) * weight;
+    }
+    else
+        fragColor = vec4(finalColor, 1.0f);
 }

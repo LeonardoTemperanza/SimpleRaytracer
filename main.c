@@ -3,15 +3,13 @@
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdint.h"
+#include "math.h"
 
 // Unity build
 #include "glad.c"
 #include "GLFW/glfw3.h"
 
-void ErrorCallback(int error, const char* description)
-{
-    fprintf(stderr, "Error: %s\n", description);
-}
+#define Deg2Rad 0.017453292
 
 float fullScreenQuad[] =
 {
@@ -69,6 +67,17 @@ struct
     float x, y, z;
 } typedef Vec3;
 
+Vec3 Sum(Vec3 a, Vec3 b)  { Vec3 res; res.x = a.x+b.x; res.y = a.y+b.y; res.z = a.z+b.z; return res; }
+Vec3 Mul(Vec3 a, float f) { Vec3 res = a; res.x *= f; res.y *= f; res.z *= f; return res; }
+Vec3 CrossProduct(Vec3 a, Vec3 b)
+{
+    Vec3 res;
+    res.x = a.y * b.z - a.z * b.y;
+    res.y = a.z * b.x - a.x * b.z;
+    res.z = a.x * b.y - a.y * b.x;
+    return res;
+}
+
 struct
 {
     float x, y;
@@ -78,11 +87,16 @@ struct
 {
     Vec2 mouseDelta;
     bool rightClick;
-    bool pressedW, pressedA, pressedS, pressedD;
+    bool pressedW, pressedA, pressedS, pressedD, pressedE, pressedQ;
 } typedef Input;
 
 // Global for simplicity
 Input input;
+
+void ErrorCallback(int error, const char* description)
+{
+    fprintf(stderr, "Error: %s\n", description);
+}
 
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mode)
 {
@@ -95,11 +109,67 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mode)
     }
 }
 
+void KeyboardButtonCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    switch(key)
+    {
+        default: break;
+        case GLFW_KEY_W:
+        {
+            if(action == GLFW_PRESS)
+                input.pressedW = true;
+            else if(action == GLFW_RELEASE)
+                input.pressedW = false;
+            break;
+        }
+        case GLFW_KEY_A:
+        {
+            if(action == GLFW_PRESS)
+                input.pressedA = true;
+            else if(action == GLFW_RELEASE)
+                input.pressedA = false;
+            break;
+        }
+        case GLFW_KEY_S:
+        {
+            if(action == GLFW_PRESS)
+                input.pressedS = true;
+            else if(action == GLFW_RELEASE)
+                input.pressedS = false;
+            break;
+        }
+        case GLFW_KEY_D:
+        {
+            if(action == GLFW_PRESS)
+                input.pressedD = true;
+            else if(action == GLFW_RELEASE)
+                input.pressedD = false;
+            break;
+        }
+        case GLFW_KEY_E:
+        {
+            if(action == GLFW_PRESS)
+                input.pressedE = true;
+            else if(action == GLFW_RELEASE)
+                input.pressedE = false;
+            break;
+        }
+        case GLFW_KEY_Q:
+        {
+            if(action == GLFW_PRESS)
+                input.pressedQ = true;
+            else if(action == GLFW_RELEASE)
+                input.pressedQ = false;
+            break;
+        }
+    }
+}
+
 // Returns shader program
 RenderState InitRendering();
 void ResizeFramebuffers(RenderState* state, int width, int height);
 
-void FirstPersonCamera(Vec3* camPos, Vec2* camRot);
+void FirstPersonCamera(Vec3* camPos, Vec2* camRot, float deltaTime);
 
 char* LoadEntireFile(const char* fileName);
 
@@ -112,6 +182,7 @@ int main()
     
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // Required on macOS
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     
@@ -120,6 +191,7 @@ int main()
     
     // Input callbacks
     glfwSetMouseButtonCallback(window, MouseButtonCallback);
+    glfwSetKeyCallback(window, KeyboardButtonCallback);
     
     glfwMakeContextCurrent(window);
     gladLoadGL();
@@ -132,60 +204,94 @@ int main()
     uint32_t accumulate = true;
     uint32_t frameCount = 0;
     uint32_t frameAccum = 0; // Frame counter from start of accumulation
-    Vec3 camPos = {0};
+    Vec3 camPos = {0.0f, 0.0f, -10.0f};
     Vec2 camRot = {0};
     
     int prevWidth  = 0;
     int prevHeight = 0;
+    Vec2 prevMousePos = {0};
+    double prevTime = glfwGetTime();
+    bool firstFrame = true;
     while(!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
         
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
+        bool changedSize = (prevWidth != width || prevHeight != height);
+        
+        float curTime = glfwGetTime();
+        float deltaTime = curTime - prevTime;
+        prevTime = curTime;
+        
+        // Get input
+        {
+            double xPos, yPos;
+            glfwGetCursorPos(window, &xPos, &yPos);
+            if(firstFrame)
+            {
+                prevMousePos.x = xPos;
+                prevMousePos.y = yPos;
+            }
+            
+            input.mouseDelta.x = (float)xPos - prevMousePos.x;
+            input.mouseDelta.y = (float)yPos - prevMousePos.y;
+            
+            prevMousePos.x = xPos;
+            prevMousePos.y = yPos;
+        }
         
         // Update state
-        FirstPersonCamera(&camPos, &camRot);
+        {
+            if(input.rightClick)
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            else
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            
+            FirstPersonCamera(&camPos, &camRot, 1/60.0f);
+            
+            accumulate = !input.rightClick && !changedSize;
+            if(!accumulate) frameAccum = 0;
+        }
         
-        if(input.rightClick) frameAccum = 0;
-        accumulate = !input.rightClick;
-        
-        // Change framebuffer size if needed
-        bool changedSize = (prevWidth != width || prevHeight != height);
-        if(changedSize)
-            ResizeFramebuffers(&renderState, width, height);
-        
-        glBindFramebuffer(GL_FRAMEBUFFER, renderState.pingPongFbo[1]);
-        
-        // Render to framebuffer
-        glViewport(0, 0, width, height);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(renderState.program);
-        
-        // Set uniforms
-        glUniform2f(renderState.resolution, (float)width, (float)height);
-        glUniform1ui(renderState.frameId, frameCount);
-        glUniform1ui(renderState.accumulate, accumulate);
-        glUniform1ui(renderState.frameAccum, frameAccum);
-        glUniform3f(renderState.cameraPos, camPos.x, camPos.y, camPos.z);
-        glUniform2f(renderState.cameraAngle, camRot.x, camRot.y);
-        glBindTexture(GL_TEXTURE_2D, renderState.pingPongTex[0]);
-        
-        glBindVertexArray(renderState.vao);
-        glDrawArrays(GL_TRIANGLES, 0, sizeof(fullScreenQuad) / (sizeof(float) * 3));
-        
-        // Render produced image to default framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(renderState.tex2ScreenProgram);
-        glBindTexture(GL_TEXTURE_2D, renderState.pingPongTex[1]);
-        
-        glBindVertexArray(renderState.vao);
-        glDrawArrays(GL_TRIANGLES, 0, sizeof(fullScreenQuad) / (sizeof(float) * 3));
-        
-        glfwSwapBuffers(window);
+        // Rendering
+        {
+            // Change framebuffer sizes if needed
+            if(changedSize)
+                ResizeFramebuffers(&renderState, width, height);
+            
+            glBindFramebuffer(GL_FRAMEBUFFER, renderState.pingPongFbo[1]);
+            
+            // Render to framebuffer
+            glViewport(0, 0, width, height);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(renderState.program);
+            
+            // Set uniforms
+            glUniform2f(renderState.resolution, (float)width, (float)height);
+            glUniform1ui(renderState.frameId, frameCount);
+            glUniform1ui(renderState.accumulate, accumulate);
+            glUniform1ui(renderState.frameAccum, frameAccum);
+            glUniform3f(renderState.cameraPos, camPos.x, camPos.y, camPos.z);
+            glUniform2f(renderState.cameraAngle, camRot.x, camRot.y);
+            glBindTexture(GL_TEXTURE_2D, renderState.pingPongTex[0]);
+            
+            glBindVertexArray(renderState.vao);
+            glDrawArrays(GL_TRIANGLES, 0, sizeof(fullScreenQuad) / (sizeof(float) * 3));
+            
+            // Render produced image to default framebuffer
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(renderState.tex2ScreenProgram);
+            glBindTexture(GL_TEXTURE_2D, renderState.pingPongTex[1]);
+            
+            glBindVertexArray(renderState.vao);
+            glDrawArrays(GL_TRIANGLES, 0, sizeof(fullScreenQuad) / (sizeof(float) * 3));
+            
+            glfwSwapBuffers(window);
+        }
         
         // Swap framebuffer objects for next frame
         uint32_t tmp = renderState.pingPongFbo[0];
@@ -199,6 +305,7 @@ int main()
         prevHeight = height;
         ++frameCount;
         ++frameAccum;
+        firstFrame = false;
     }
     
     glfwDestroyWindow(window);
@@ -327,11 +434,43 @@ void ResizeFramebuffers(RenderState* state, int width, int height)
     }
 }
 
-void FirstPersonCamera(Vec3* camPos, Vec2* camRot)
+void FirstPersonCamera(Vec3* camPos, Vec2* camRot, float deltaTime)
 {
-    Vec3 prevPos = *camPos;
-    Vec2 prevRot = *camRot;
+    if(!input.rightClick) return;
     
+    const float moveSpeed = 4.0f;
+    const float mouseSensitivity = 0.2f * Deg2Rad;  // 0.2f degrees per pixel
+    const float maxAngle = 89.0f * Deg2Rad;
+    
+    // Update rotation
+    {
+        camRot->x += input.mouseDelta.x * mouseSensitivity;
+        camRot->y += input.mouseDelta.y * mouseSensitivity;
+        camRot->y = max(min(camRot->y, maxAngle), -maxAngle);
+    }
+    
+    // Update position
+    {
+        float pitch = camRot->y;
+        float yaw   = camRot->x;
+        
+        Vec3 lookAt =
+        {
+            sin(yaw) * cos(pitch),
+            -sin(pitch),
+            cos(yaw) * cos(pitch)
+        };
+        
+        Vec3 up = {0.0f, 1.0f, 0.0f};
+        Vec3 right = CrossProduct(up, lookAt);
+        
+        Vec3 vel = {0};
+        vel = Sum(vel, Mul(lookAt, input.pressedW * moveSpeed - input.pressedS * moveSpeed));
+        vel = Sum(vel, Mul(right, input.pressedD * moveSpeed - input.pressedA * moveSpeed));
+        vel = Sum(vel, Mul(up, input.pressedE * moveSpeed - input.pressedQ * moveSpeed));
+        
+        *camPos = Sum(*camPos, Mul(vel, deltaTime));
+    }
 }
 
 char* LoadEntireFile(const char* fileName)

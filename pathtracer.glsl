@@ -22,6 +22,7 @@ struct Material
     vec3 color;
     vec3 emissionColor;
     float emissionStrength;
+    float smoothness;
 };
 
 struct Sphere
@@ -154,12 +155,13 @@ vec3 RandomInHemisphere(vec3 normal, inout uint state)
 const float fov = 90.0f;
 
 // Materials
-const Material zeroMat = Material(vec3(0.0f), vec3(0.0f), 0.0f);
-const Material emissive = Material(vec3(1.0f), vec3(1.0f), 10.0f);
-const Material red = Material(vec3(1.0f, 0.0f, 0.0f), vec3(0.0f), 0.0f);
-const Material green = Material(vec3(0.0f, 1.0f, 0.0f), vec3(0.0f), 0.0f);
-const Material blue = Material(vec3(0.0f, 0.0f, 1.0f), vec3(0.0f), 0.0f);
-const Material white = Material(vec3(1.0f, 1.0f, 1.0f), vec3(0.0f), 0.0f);
+const Material zeroMat = Material(vec3(0.0f), vec3(0.0f), 0.0f, 0.0f);
+const Material emissive = Material(vec3(1.0f), vec3(1.0f), 10.0f, 0.0f);
+const Material red = Material(vec3(1.0f, 0.0f, 0.0f), vec3(0.0f), 0.0f, 0.0f);
+const Material green = Material(vec3(0.0f, 1.0f, 0.0f), vec3(0.0f), 0.0f, 0.0f);
+const Material blue = Material(vec3(0.0f, 0.0f, 1.0f), vec3(0.0f), 0.50f, 0.0f);
+const Material white = Material(vec3(1.0f, 1.0f, 1.0f), vec3(0.0f), 0.0f, 0.0f);
+const Material reflective = Material(vec3(1.0f), vec3(1.0f), 0.0f, 1.0f);
 
 // Scene
 // To easily select a scene, change these defines
@@ -169,11 +171,11 @@ const Material white = Material(vec3(1.0f, 1.0f, 1.0f), vec3(0.0f), 0.0f);
 
 // Change these values to modify the scenes
 Sphere scene0_spheres[5] = Sphere[]
-(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f, red),
- Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f, green),
- Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f, blue),
+(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f, Material(vec3(1.0f, 0.0f, 0.0f), vec3(1.0f), 0.0f, 0.5f)),
+ Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f, Material(vec3(1.0f), vec3(1.0f), 0.0f, 0.75f)),
+ Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f, Material(vec3(1.0f), vec3(1.0f), 0.0f, 1.0f)),
  Sphere(vec3(0.0f,  -100.5f, 0.0f), 100.0f, white),
- Sphere(vec3(100.0f, 60.0f,  -40.0f), 50.0f, emissive));
+ Sphere(vec3(100.0f, 60.0f,  -40.0f), 30.0f, emissive));
 
 ////////////////
 // Main
@@ -229,6 +231,27 @@ HitInfo RaySceneIntersection(Ray ray)
     return res;
 }
 
+vec3 RotateVector(vec3 v, float yaw, float pitch)
+{
+    float cosYaw = cos(yaw);
+    float sinYaw = sin(yaw);
+    float cosPitch = cos(pitch);
+    float sinPitch = sin(pitch);
+    
+    vec3 pitchRotated;
+    pitchRotated.x = v.x;
+    pitchRotated.y = v.y * cosPitch - v.z * sinPitch;
+    pitchRotated.z = v.y * sinPitch + v.z * cosPitch;
+    
+    // Apply the yaw rotation (around the y-axis)
+    vec3 yawPitchRotated;
+    yawPitchRotated.x = pitchRotated.x * cosYaw + pitchRotated.z * sinYaw;
+    yawPitchRotated.y = pitchRotated.y;
+    yawPitchRotated.z = -pitchRotated.x * sinYaw + pitchRotated.z * cosYaw;
+    
+    return yawPitchRotated;
+}
+
 void main()
 {
     float aspectRatio = resolution.x / resolution.y;
@@ -241,7 +264,7 @@ void main()
     uint rngState = pixelId + (lastId + 1u) * uint(frameId);
     
     // Randomly nudge the coordinate to achieve antialiasing
-    vec2 nudgedUv = gl_FragCoord.xy + RandomInCircle(rngState);
+    vec2 nudgedUv = gl_FragCoord.xy + RandomInCircle(rngState) * 0.5;
     nudgedUv = clamp(nudgedUv, vec2(0.0f), resolution.xy);
     nudgedUv /= resolution.xy;
     
@@ -249,9 +272,9 @@ void main()
     coord.x *= aspectRatio;
     
     float fov = 90.0f;
-    vec3 cameraPos = vec3(0.0f, 0.0f, -3.0f);
-    
     vec3 cameraLookat = vec3(coord, 1.0f);
+    // Rotate to lookAt vector according to camera rotation
+    cameraLookat = RotateVector(cameraLookat, cameraAngle.x, cameraAngle.y);
     
     Ray cameraRay = Ray(cameraPos, cameraLookat, 0.001f, 10000.0f);
     
@@ -273,22 +296,18 @@ void main()
             
             // Ray hit something
             
-            // Choose new ray position and direction
-            vec3 cosWeightedRandom = hit.normal + RandomDirection(rngState);
-            if(abs(dot(cosWeightedRandom, cosWeightedRandom)) < 0.001f)
-                cosWeightedRandom = hit.normal;
-            else
-                cosWeightedRandom = normalize(cosWeightedRandom);
-            
-            currentRay.ori = hit.pos;
-            currentRay.dir = cosWeightedRandom;
-            
             Material mat = hit.mat;
+            
+            // Choose new ray position and direction
+            vec3 diffuseDir = normalize(hit.normal + RandomDirection(rngState));
+            vec3 specularDir = reflect(currentRay.dir, hit.normal);
+            currentRay.ori = hit.pos;
+            currentRay.dir = mix(diffuseDir, specularDir, mat.smoothness);
+            
             vec3 emittedLight = mat.emissionColor * mat.emissionStrength;
-            float lightStrength = dot(hit.normal, currentRay.dir);
             
             incomingLight += emittedLight * rayColor;
-            rayColor *= mat.color * lightStrength;
+            rayColor *= mat.color;
         }
         
         finalColor += incomingLight;
@@ -296,12 +315,13 @@ void main()
     
     finalColor /= float(iters);
     
+    vec4 curColor = vec4(finalColor, 1.0f);
     if(doAccumulate != 0)
     {
         float weight = 1.0f / float(frameAccum);
         vec4 prevColor = texture(previousFrame, texCoords);
-        fragColor = prevColor * (1.0f - weight) + vec4(finalColor, 1.0f) * weight;
+        fragColor = prevColor * (1.0f - weight) + curColor * weight;
     }
     else
-        fragColor = vec4(finalColor, 1.0f);
+        fragColor = curColor;
 }

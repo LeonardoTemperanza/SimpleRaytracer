@@ -1,12 +1,12 @@
-# Simple Path Tracer
+# Simple Raytracer
 
-This is a very simple path tracer which was made for my Computer Graphics course in Computer Science university.
+This is a very simple raytracer which was made for my Computer Graphics course in Computer Science university.
 
 ## Build and Run
 
 Clone the repository:
 ```bat 
-git clone https://github.com/LeonardoTemperanza/SimplePathTracer
+git clone https://github.com/LeonardoTemperanza/SimpleRaytracer
 ```
 
 ### Windows

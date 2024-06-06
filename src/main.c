@@ -282,7 +282,7 @@ int main()
     
     RenderState renderState = InitRendering();
     
-    const uint32_t maxNumAccum = 200;
+    const uint32_t maxNumAccum = 500;
     
     // Initialize state
     uint32_t frameCount = 0;

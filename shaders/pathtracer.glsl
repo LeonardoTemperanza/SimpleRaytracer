@@ -317,14 +317,19 @@ const float fov = 90.0f;
 // Materials
 //                                   type           emission                   color                   roughness  textures
 
-const Material emissive   = Material(MatType_Matte, vec3(10.0f, 7.0f, 6.0f), vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
+const Material emissive   = Material(MatType_Matte, vec3(10.0f, 7.0f, 6.0f),   vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
+const Material strongEmis = Material(MatType_Matte, vec3(90.0f, 70.0f, 60.0f),   vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material red        = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 0.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material green      = Material(MatType_Matte, vec3(0.0f),                vec3(0.0f, 1.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material blue       = Material(MatType_Matte, vec3(0.0f),                vec3(0.2f, 0.2f, 0.7f), 1.0f,      0, 1, 2);
 const Material white      = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material grey       = Material(MatType_Matte, vec3(0.0f),                vec3(0.6f, 0.6f, 0.6f), 1.0f,      0, 0, 0);
 const Material reflective = Material(MatType_Reflective, vec3(0.0f),           vec3(0.5f, 0.5f, 0.5f), 0.0f,      0, 0, 0);
-const Material gReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.0f,      0, 0, 0);
+const Material gReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.1f,      0, 0, 0);
+const Material rReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.2f,      0, 0, 0);
+const Material bReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.0f, 0.5f), 0.3f,      0, 0, 0);
+const Material rReflective2 = Material(MatType_Reflective, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.4f,      0, 0, 0);
+const Material gReflective2 = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.5f,      0, 0, 0);
 const Material wood       = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 1, 2);
 const Material glass      = Material(MatType_Transparent, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.0f,      0, 0, 0);
 const Material greenGlass = Material(MatType_Transparent, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.0f,      0, 0, 0);
@@ -382,6 +387,10 @@ uint scene2_envMap = 4;
 Sphere scene2_spheres[] = Sphere[]
 //      Origin                      Radius   Material
 (Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    emissive),
+ Sphere(vec3(-1.0f, 4.0f,    1.5f), 0.5f,    strongEmis),
+ Sphere(vec3(1.0f,  4.0f,    1.5f), 0.5f,    strongEmis),
+ Sphere(vec3(1.0f,  4.0f,    -1.5f), 0.5f,   strongEmis),
+ Sphere(vec3(-1.0f, 4.0f,    -1.5f), 0.5f,   strongEmis),
  Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    reflective),
  Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    glass)
  );
@@ -395,7 +404,7 @@ Quad scene2_quads[] = Quad[]
       wood)
  );
 
-uint scene3_envMap = 0;
+uint scene3_envMap = 3;
 
 // Change these values to modify the scenes
 Sphere scene3_spheres[] = Sphere[]
@@ -403,7 +412,11 @@ Sphere scene3_spheres[] = Sphere[]
 (Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    glass),
  Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    greenGlass),
  Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    glossy),
- Sphere(vec3(1.2f,  0.0f,    -1.0f), 0.5f,    checkerBoard)
+ Sphere(vec3(1.2f,  0.0f,    -1.0f), 0.5f,   checkerBoard),
+ Sphere(vec3(-1.0f, 4.0f,    1.5f), 0.5f,    strongEmis),
+ Sphere(vec3(1.0f,  4.0f,    1.5f), 0.5f,    strongEmis),
+ Sphere(vec3(1.0f,  4.0f,    -1.5f), 0.5f,   strongEmis),
+ Sphere(vec3(-1.0f, 4.0f,    -1.5f), 0.5f,   strongEmis)
  );
 
 Quad scene3_quads[] = Quad[]
@@ -421,8 +434,11 @@ uint scene4_envMap = 0;
 Sphere scene4_spheres[] = Sphere[]
 //      Origin                      Radius   Material
 (Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    reflective),
- Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    blue),
- Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    gReflective)
+ Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    gReflective),
+ Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    rReflective),
+ Sphere(vec3(-1.2f, 0.0f,    -1.0f), 0.5f,    bReflective),
+ Sphere(vec3(0.0f,  0.0f,    -1.0f), 0.5f,    rReflective2),
+ Sphere(vec3(1.2f,  0.0f,    -1.0f), 0.5f,    gReflective2)
  );
 
 Quad scene4_quads[] = Quad[]
@@ -588,24 +604,37 @@ void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight
     
     vec4 matColor = SampleTexture(hit.texCoords, mat.color) * vec4(mat.colorScale, 1.0f);
     
-    currentRay.ori = hit.pos;
-    
     if(RandomFloat() > matColor.a)
+    {
+        currentRay.ori = hit.pos;
         return;
+    }
     
     float matRoughness = SampleTexture(hit.texCoords, mat.roughness).x * mat.roughnessScale;
+    matRoughness = clamp(matRoughness, 0.0f, 1.0f);
     
-    vec2 rnd = vec2(RandomFloat(), RandomFloat());
-    float exponent = 2.0f / (matRoughness * matRoughness); 
-    vec3 microfacetNormal = SampleMicrofacetNormal(exponent, hit.normal, rnd);
+    vec3 prevNormal = hit.normal;
+    vec3 normal = hit.normal;
+    if(matRoughness > 0.0001f)
+    {
+        vec2 rnd = vec2(RandomFloat(), RandomFloat());
+        float exponent = 2.0f / (matRoughness * matRoughness);
+        normal = SampleMicrofacetNormal(exponent, hit.normal, rnd);
+    }
     
-    vec3 reflection = reflect(currentRay.dir, microfacetNormal);
-    currentRay.dir = reflection;
-    
-    vec3 fresnel = FresnelSchlick(matColor.rgb, microfacetNormal, outDir);
-    
-    incomingLight += fresnel * rayColor;
+    vec3 reflection = reflect(currentRay.dir, normal);
+    vec3 fresnel = FresnelSchlick(matColor.rgb, normal, outDir);
     rayColor *= fresnel;
+    
+    // If the reflection ray ends up through the surface
+    // (because the roughness is high and the microsurface
+    // normal is very perturbed) don't modify the ray origin
+    // and the ray direction so that the next hit will be the same
+    if(dot(reflection, prevNormal) > 0.0f)
+    {
+        currentRay.ori = hit.pos;
+        currentRay.dir = reflection;
+    }
 }
 
 void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor)
@@ -678,7 +707,6 @@ vec3 SampleSceneEnvMap(vec3 dir, uint scene)
 }
 
 // From the LittleCG library
-// TODO: Seems a little strong... did i make a mistake somewhere?
 vec3 FresnelSchlick(vec3 color, vec3 normal, vec3 outDir)
 {
     if(color == vec3(0.0f)) return vec3(0.0f);
@@ -701,8 +729,7 @@ vec3 SampleMicrofacetNormal(float exponent, vec3 normal, vec2 rnd)
     float z    = pow(rnd.y, 1.0f / (exponent + 1.0f));
     float r    = sqrt(1.0f - z * z);
     float phi  = 2.0f * PI * rnd.x;
-    vec3 local = -vec3(r * cos(phi), r * sin(phi), z);
-    local = normalize(local);
+    vec3 local = vec3(r * cos(phi), r * sin(phi), z);
     
     // Transform from local to world space
     // https://graphics.pixar.com/library/OrthonormalB/paper.pdf
@@ -716,7 +743,7 @@ vec3 SampleMicrofacetNormal(float exponent, vec3 normal, vec2 rnd)
         local2World = mat3(x, y, n);
     }
     
-    return local2World * local;
+    return normalize(local2World * local);
 }
 
 HitInfo RaySceneIntersection(Ray ray)

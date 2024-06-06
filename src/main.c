@@ -30,8 +30,8 @@ float fullScreenQuad[] =
 };
 
 char* vertexShaderSrc = "#version 400 core\n"
-"in vec3 pos;\n"
-"in vec2 inTexCoords;\n"
+"layout(location = 0) in vec3 pos;\n"
+"layout(location = 1) in vec2 inTexCoords;\n"
 "out vec2 texCoords;\n"
 "void main()\n"
 "{\n"

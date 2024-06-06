@@ -7,10 +7,10 @@ if not exist build\win64 mkdir build\win64
 
 pushd build\win64
 
-set include_dirs=/I..\..\include /I..\..
+set include_dirs=/I..\..\include /I..\..\src
 set lib_dirs=/LIBPATH:..\..\libs\win64
 
-set source_files=..\..\main.c
+set source_files=..\..\src\main.c
 set lib_files=user32.lib gdi32.lib shell32.lib glfw\glfw3_mt.lib
 set output_name=simple_rt.exe
 

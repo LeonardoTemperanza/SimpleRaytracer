@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+build_mac.sh eol=lf
+build_linux.sh eol=lf

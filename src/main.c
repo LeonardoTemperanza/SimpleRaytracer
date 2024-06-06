@@ -14,6 +14,10 @@
 #define Deg2Rad 0.017453292
 #define ArrayCount(array) sizeof(array) / sizeof(array[0])
 
+float Min(float a, float b) { return a > b? b : a; }
+float Max(float a, float b) { return a > b? a : b; }
+float Clamp(float val, float min, float max) { return Min(max, Max(val, min)); }
+
 float fullScreenQuad[] =
 {
     // Vertices         // Texture Coords
@@ -153,7 +157,7 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mode)
 static float exposure = 0.0f;
 void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
 {
-    exposure = max(-10.0f, exposure + yOffset * 0.2f);
+    exposure = Max(-10.0f, exposure + yOffset * 0.2f);
 }
 
 void KeyboardButtonCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -416,7 +420,7 @@ int main()
         prevWidth  = width;
         prevHeight = height;
         ++frameCount;
-        frameAccum = min(frameAccum + 1, maxNumAccum);
+        frameAccum = Min(frameAccum + 1, maxNumAccum);
         firstFrame = false;
     }
     
@@ -633,7 +637,7 @@ void FirstPersonCamera(Vec3* camPos, Vec2* camRot, float deltaTime)
     {
         camRot->x += input.mouseDelta.x * mouseSensitivity;
         camRot->y += input.mouseDelta.y * mouseSensitivity;
-        camRot->y = max(min(camRot->y, maxAngle), -maxAngle);
+        camRot->y = Clamp(camRot->y, -maxAngle, maxAngle);
     }
     
     // Update position

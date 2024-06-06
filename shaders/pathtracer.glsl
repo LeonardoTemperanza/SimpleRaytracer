@@ -314,16 +314,17 @@ vec3 RandomInHemisphere(vec3 normal)
 const uint iterations = 30;
 const uint NumBounces = 5;
 const float fov = 90.0f;
-
 // Materials
 //                                   type           emission                   color                   roughness  textures
+
 const Material emissive   = Material(MatType_Matte, vec3(10.0f, 7.0f, 6.0f), vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material red        = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 0.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material green      = Material(MatType_Matte, vec3(0.0f),                vec3(0.0f, 1.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material blue       = Material(MatType_Matte, vec3(0.0f),                vec3(0.2f, 0.2f, 0.7f), 1.0f,      0, 1, 2);
 const Material white      = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material grey       = Material(MatType_Matte, vec3(0.0f),                vec3(0.6f, 0.6f, 0.6f), 1.0f,      0, 0, 0);
-const Material reflective = Material(MatType_Reflective, vec3(0.1f),           vec3(1.0f, 1.0f, 1.0f), 0.0f,      0, 0, 0);
+const Material reflective = Material(MatType_Reflective, vec3(0.0f),           vec3(0.5f, 0.5f, 0.5f), 0.0f,      0, 0, 0);
+const Material gReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.0f,      0, 0, 0);
 const Material wood       = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 1, 2);
 const Material glass      = Material(MatType_Transparent, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.0f,      0, 0, 0);
 const Material greenGlass = Material(MatType_Transparent, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.0f,      0, 0, 0);
@@ -403,11 +404,28 @@ Sphere scene3_spheres[] = Sphere[]
  Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    greenGlass),
  Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    glossy),
  Sphere(vec3(1.2f,  0.0f,    -1.0f), 0.5f,    checkerBoard)
- //Sphere(vec3(0.0f,  -100.5f, 0.0f), 100.0f,  white),
- //Sphere(vec3(100.0f, 60.0f,  -40.0f), 30.0f, emissive)
  );
 
 Quad scene3_quads[] = Quad[]
+// vertex positions,
+// texture coordinates,
+// material
+(Quad(vec3[4](vec3(-10.0f, -0.5f, -10.0f), vec3(-10.0f, -0.5f, 10.0f), vec3(10.0f, -0.5f, -10.0f), vec3(10.0f, -0.5f, 10.0f)),
+      vec2[4](vec2(0.0f, 0.0f), vec2(0.0f, 5.0f), vec2(5.0f, 0.0f), vec2(5.0f, 5.0f)),
+      wood)
+ );
+
+uint scene4_envMap = 0;
+
+// Change these values to modify the scenes
+Sphere scene4_spheres[] = Sphere[]
+//      Origin                      Radius   Material
+(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    reflective),
+ Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    blue),
+ Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    gReflective)
+ );
+
+Quad scene4_quads[] = Quad[]
 // vertex positions,
 // texture coordinates,
 // material
@@ -653,6 +671,7 @@ vec3 SampleSceneEnvMap(vec3 dir, uint scene)
         case 1: return SampleEnvMap(dir, scene1_envMap);
         case 2: return SampleEnvMap(dir, scene2_envMap);
         case 3: return SampleEnvMap(dir, scene3_envMap);
+        case 4: return SampleEnvMap(dir, scene4_envMap);
     }
     
     return vec3(0.0f);
@@ -755,6 +774,12 @@ objKind = ObjKind_Quad;                                          \
             CheckQuads(scene3_quads);
             break;
         }
+        case 4:
+        {
+            CheckSpheres(scene4_spheres);
+            CheckQuads(scene4_quads);
+            break;
+        }
     }
 #undef CheckSpheres
 #undef CheckQuads
@@ -774,6 +799,7 @@ objKind = ObjKind_Quad;                                          \
             case 1: hitSphere = scene1_spheres[idx]; break;
             case 2: hitSphere = scene2_spheres[idx]; break;
             case 3: hitSphere = scene3_spheres[idx]; break;
+            case 4: hitSphere = scene4_spheres[idx]; break;
         }
         
         vec3 pos = hitSphere.pos;
@@ -790,6 +816,7 @@ objKind = ObjKind_Quad;                                          \
             case 1: hitQuad = scene1_quads[idx]; break;
             case 2: hitQuad = scene2_quads[idx]; break;
             case 3: hitQuad = scene3_quads[idx]; break;
+            case 4: hitQuad = scene4_quads[idx]; break;
         }
         
         // Get hit triangle

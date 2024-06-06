@@ -64,7 +64,10 @@ char* pathTracerSrcPath = "../../shaders/pathtracer.glsl";
 const char* envMaps[] =
 {
     "../../textures/hangar_interior_1k.hdr",
-    "../../textures/meadow_2_1k.hdr"
+    "../../textures/metro_noord_1k.hdr",
+    "../../textures/dancing_hall_1k.hdr",
+    "../../textures/empty_workshop_1k.hdr",
+    "../../textures/poly_haven_studio_1k.hdr",
 };
 
 // NOTE: The shader relies on the fact that index 0 has the white texture
@@ -73,7 +76,11 @@ const char* textures[] =
     "../../textures/white.png",
     "../../textures/oak_veneer_01_diff_1k.png",
     "../../textures/oak_veneer_01_rough_1k.png",
-    "../../textures/checkerboard_texture.png"
+    "../../textures/checkerboard_texture.png",
+    "../../textures/fabric_leather_02_diff_1k.png",
+    "../../textures/fabric_leather_02_rough_1k.png",
+    "../../textures/metal_plate_diff_1k.png",
+    "../../textures/metal_plate_rough_1k.png",
 };
 
 struct

@@ -252,35 +252,36 @@ RayQuadResult RayQuadIntersection(Ray ray, Quad quad)
 
 // PCG Random number generator.
 // From: www.pcg-random.org and www.shadertoy.com/view/XlGcRh
-uint RandomUInt(inout uint state)
+uint rngState = 0;
+uint RandomUInt()
 {
-    state = state * 747796405u + 2891336453u;
-    uint result = ((state >> ((state >> 28) + 4u)) ^ state) * 277803737u;
+    rngState = rngState * 747796405u + 2891336453u;
+    uint result = ((rngState >> ((rngState >> 28) + 4u)) ^ rngState) * 277803737u;
     result = (result >> 22) ^ result;
     return result;
 }
 
 // From 0 to 1
-float RandomFloat(inout uint state)
+float RandomFloat()
 {
-    state = state * 747796405u + 2891336453u;
-    uint result = ((state >> ((state >> 28) + 4u)) ^ state) * 277803737u;
+    rngState = rngState * 747796405u + 2891336453u;
+    uint result = ((rngState >> ((rngState >> 28) + 4u)) ^ rngState) * 277803737u;
     result = (result >> 22) ^ result;
     return float(result) / 4294967295.0;
 }
 
-float RandomFloatNormalDist(inout uint state)
+float RandomFloatNormalDist()
 {
-    float theta = 2.0f * PI * RandomFloat(state);
-    float rho   = sqrt(-2.0f * log(RandomFloat(state)));
+    float theta = 2.0f * PI * RandomFloat();
+    float rho   = sqrt(-2.0f * log(RandomFloat()));
     return rho * cos(theta);
 }
 
-vec2 RandomInCircle(inout uint state)
+vec2 RandomInCircle()
 {
-    float angle = RandomFloat(state) * 2.0f * PI;
+    float angle = RandomFloat() * 2.0f * PI;
     vec2 res = vec2(cos(angle), sin(angle));
-    res *= sqrt(RandomFloat(state));
+    res *= sqrt(RandomFloat());
     return res;
 }
 
@@ -290,19 +291,19 @@ vec2 RandomInCircle(inout uint state)
 // is spherically symmetric, we can just sample
 // the normal distribution 3 times to get our
 // direction result.
-vec3 RandomDirection(inout uint state)
+vec3 RandomDirection()
 {
-    float x = RandomFloatNormalDist(state);
-    float y = RandomFloatNormalDist(state);
-    float z = RandomFloatNormalDist(state);
+    float x = RandomFloatNormalDist();
+    float y = RandomFloatNormalDist();
+    float z = RandomFloatNormalDist();
     return normalize(vec3(x, y, z));
 }
 
 // We can just negate the directions that end up
 // on the opposite side
-vec3 RandomInHemisphere(vec3 normal, inout uint state)
+vec3 RandomInHemisphere(vec3 normal)
 {
-    vec3 dir = RandomDirection(state);
+    vec3 dir = RandomDirection();
     return dir * sign(dot(normal, dir));
 }
 
@@ -310,22 +311,26 @@ vec3 RandomInHemisphere(vec3 normal, inout uint state)
 // Config
 
 // Rendering
+const uint iterations = 30;
 const uint NumBounces = 5;
 const float fov = 90.0f;
 
 // Materials
 //                                   type           emission                   color                   roughness  textures
-const Material emissive   = Material(MatType_Matte, vec3(90.0f, 90.0f, 90.0f), vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
+const Material emissive   = Material(MatType_Matte, vec3(10.0f, 7.0f, 6.0f), vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material red        = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 0.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material green      = Material(MatType_Matte, vec3(0.0f),                vec3(0.0f, 1.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material blue       = Material(MatType_Matte, vec3(0.0f),                vec3(0.2f, 0.2f, 0.7f), 1.0f,      0, 1, 2);
 const Material white      = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material grey       = Material(MatType_Matte, vec3(0.0f),                vec3(0.6f, 0.6f, 0.6f), 1.0f,      0, 0, 0);
-const Material reflective = Material(MatType_Reflective, vec3(0.0f),           vec3(0.5f),             0.25f,     0, 0, 0);
+const Material reflective = Material(MatType_Reflective, vec3(0.1f),           vec3(1.0f, 1.0f, 1.0f), 0.0f,      0, 0, 0);
 const Material wood       = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 1, 2);
 const Material glass      = Material(MatType_Transparent, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.0f,      0, 0, 0);
+const Material greenGlass = Material(MatType_Transparent, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.0f,      0, 0, 0);
 const Material glossy     = Material(MatType_Glossy, vec3(0.0f),               vec3(0.6f, 0.0f, 0.0f), 0.0f,      0, 0, 0);
 const Material checkerBoard = Material(MatType_Matte, vec3(0.0f),              vec3(1.0f),             0.0f,      0, 3, 0);
+const Material leather    = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 4, 5);
+const Material metal      = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 6, 7);
 
 // Textures (texture arrays are supported in opengl 4.0)
 uniform sampler2DArray envMaps;
@@ -349,24 +354,60 @@ vec4 SampleTexture(vec2 coords, uint texId)
 // First scene showcases textures,
 // second scene showcases materials,
 // third scene showcases other materials, coverage
-// fourth scene showcases exposure (classic box 
+// fourth scene is the classic box
 
-uint scene0_envMap = 0;
+uint scene1_envMap = 2;
 
 // Change these values to modify the scenes
-Sphere scene0_spheres[] = Sphere[]
+Sphere scene1_spheres[] = Sphere[]
 //      Origin                      Radius   Material
-(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    red),
+(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    wood),
+ Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    leather),
+ Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    metal)
+ );
+
+Quad scene1_quads[] = Quad[]
+// vertex positions,
+// texture coordinates,
+// material
+(Quad(vec3[4](vec3(-10.0f, -0.5f, -10.0f), vec3(-10.0f, -0.5f, 10.0f), vec3(10.0f, -0.5f, -10.0f), vec3(10.0f, -0.5f, 10.0f)),
+      vec2[4](vec2(0.0f, 0.0f), vec2(0.0f, 5.0f), vec2(5.0f, 0.0f), vec2(5.0f, 5.0f)),
+      wood)
+ );
+
+uint scene2_envMap = 4;
+
+// Change these values to modify the scenes
+Sphere scene2_spheres[] = Sphere[]
+//      Origin                      Radius   Material
+(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    emissive),
  Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    reflective),
- Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    blue),
- Sphere(vec3(2.4f,  0.0f,    0.5f), 0.5f,    glass),
- Sphere(vec3(3.6f,  0.0f,    0.5f), 0.5f,    glossy),
- Sphere(vec3(4.8f,  0.0f,    0.5f), 0.5f,    checkerBoard)
+ Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    glass)
+ );
+
+Quad scene2_quads[] = Quad[]
+// vertex positions,
+// texture coordinates,
+// material
+(Quad(vec3[4](vec3(-10.0f, -0.5f, -10.0f), vec3(-10.0f, -0.5f, 10.0f), vec3(10.0f, -0.5f, -10.0f), vec3(10.0f, -0.5f, 10.0f)),
+      vec2[4](vec2(0.0f, 0.0f), vec2(0.0f, 5.0f), vec2(5.0f, 0.0f), vec2(5.0f, 5.0f)),
+      wood)
+ );
+
+uint scene3_envMap = 0;
+
+// Change these values to modify the scenes
+Sphere scene3_spheres[] = Sphere[]
+//      Origin                      Radius   Material
+(Sphere(vec3(-1.2f, 0.0f,    0.5f), 0.5f,    glass),
+ Sphere(vec3(0.0f,  0.0f,    0.5f), 0.5f,    greenGlass),
+ Sphere(vec3(1.2f,  0.0f,    0.5f), 0.5f,    glossy),
+ Sphere(vec3(1.2f,  0.0f,    -1.0f), 0.5f,    checkerBoard)
  //Sphere(vec3(0.0f,  -100.5f, 0.0f), 100.0f,  white),
  //Sphere(vec3(100.0f, 60.0f,  -40.0f), 30.0f, emissive)
  );
 
-Quad scene0_quads[] = Quad[]
+Quad scene3_quads[] = Quad[]
 // vertex positions,
 // texture coordinates,
 // material
@@ -392,209 +433,18 @@ uniform sampler2D previousFrame;
 
 uniform uint scene;
 
-// Const parameters
-const uint iterations = 30;
-
-HitInfo RaySceneIntersection(Ray ray)
-{
-    int objKind = -1;
-    int idx     = -1;
-    float dist  = FLT_MAX;
-    uint triId  = 0; // Can be 0 or 1; only used for quads
-    
-    // It seems we can't dynamically pick a static array (using generic code) so this will have to do
-#define CheckSpheres(sphereArray)                                            \
-for(int i = 0; i < sphereArray.length(); ++i)                            \
-{                                                                        \
-RayIntersection inters = RaySphereIntersection(ray, sphereArray[i]); \
-if(inters.hit && inters.dist < dist)                                 \
-{                                                                    \
-dist = inters.dist;                                              \
-idx = i;                                                         \
-objKind = ObjKind_Sphere;                                        \
-}                                                                    \
-}
-    //
-    
-#define CheckQuads(quadArray)                                                \
-for(int i = 0; i < quadArray.length(); ++i)                              \
-{                                                                        \
-RayQuadResult inters = RayQuadIntersection(ray, quadArray[i]);       \
-if(inters.triId > -1 && inters.dist < dist)                          \
-{                                                                    \
-triId = inters.triId;                                            \
-dist = inters.dist;                                              \
-idx = i;                                                         \
-objKind = ObjKind_Quad;                                          \
-}                                                                    \
-}
-    //
-    
-    if(scene == 1)
-    {
-        CheckSpheres(scene0_spheres);
-        CheckQuads(scene0_quads);
-    }
-    else if(scene == 2)
-    {
-        //CheckSpheres(scene1_spheres);
-    }
-#undef CheckSpheres
-#undef CheckQuads
-    
-    if(idx == -1) return defaultHitInfo;
-    
-    // We hit something
-    
-    HitInfo res = defaultHitInfo;
-    res.hit = true;
-    
-    if(objKind == ObjKind_Sphere)
-    {
-        Sphere hitSphere = Sphere(vec3(0.0f), 0.0f, defaultMat);
-        switch(scene)
-        {
-            case 1: hitSphere = scene0_spheres[idx]; break;
-        }
-        
-        vec3 pos = hitSphere.pos;
-        res.pos = ray.ori + ray.dir * dist;
-        res.normal = normalize(res.pos - pos);
-        res.texCoords = Sphere2CubeUV(hitSphere.pos, hitSphere.rad, res.pos);
-        res.mat = hitSphere.mat;
-    }
-    else if(objKind == ObjKind_Quad)
-    {
-        Quad hitQuad = defaultQuad;
-        switch(scene)
-        {
-            case 1: hitQuad = scene0_quads[idx]; break;
-        }
-        
-        // Get hit triangle
-        vec3 tri[3];
-        vec2 coords[3];
-        if(triId == 0)
-        {
-            tri = vec3[3](hitQuad.p[0], hitQuad.p[1], hitQuad.p[2]);
-            coords = vec2[3](hitQuad.coords[0], hitQuad.coords[1], hitQuad.coords[2]);
-        }
-        else
-        {
-            tri = vec3[3](hitQuad.p[1], hitQuad.p[3], hitQuad.p[2]);
-            coords = vec2[3](hitQuad.coords[1], hitQuad.coords[3], hitQuad.coords[2]);
-        }
-        
-        res.pos = ray.ori + ray.dir * dist;
-        res.normal = normalize(cross(tri[1] - tri[0], tri[2] - tri[0]));
-        vec3 uvw = BarycentricCoords(tri[0], tri[1], tri[2], res.pos);
-        res.texCoords = uvw.x * coords[0] + uvw.y * coords[1] + uvw.z * coords[2];
-        res.mat = hitQuad.mat;
-    }
-    
-    return res;
-}
-
-vec3 CameraFrame2World(vec3 v, float yaw, float pitch)
-{
-    float cosYaw = cos(yaw);
-    float sinYaw = sin(yaw);
-    float cosPitch = cos(pitch);
-    float sinPitch = sin(pitch);
-    
-    vec3 pitchRotated;
-    pitchRotated.x = v.x;
-    pitchRotated.y = v.y * cosPitch - v.z * sinPitch;
-    pitchRotated.z = v.y * sinPitch + v.z * cosPitch;
-    
-    // Apply the yaw rotation (around the y-axis)
-    vec3 yawPitchRotated;
-    yawPitchRotated.x = pitchRotated.x * cosYaw + pitchRotated.z * sinYaw;
-    yawPitchRotated.y = pitchRotated.y;
-    yawPitchRotated.z = -pitchRotated.x * sinYaw + pitchRotated.z * cosYaw;
-    
-    return yawPitchRotated;
-}
-
-vec3 InverseCameraFrame(vec3 v, float yaw, float pitch)
-{
-    // Change sign of angles to rotate in the opposite way
-    float cosYaw = cos(-yaw);
-    float sinYaw = sin(-yaw);
-    float cosPitch = cos(-pitch);
-    float sinPitch = sin(-pitch);
-    
-    // Apply the yaw rotation first
-    vec3 yawRotated;
-    yawRotated.x = v.x * cosYaw + v.z * sinYaw;
-    yawRotated.y = v.y;
-    yawRotated.z = -v.x * sinYaw + v.z * cosYaw;
-    
-    // Apply the pitch rotation second
-    vec3 yawPitchRotated;
-    yawPitchRotated.x = yawRotated.x;
-    yawPitchRotated.y = yawRotated.y * cosPitch - yawRotated.z * sinPitch;
-    yawPitchRotated.z = yawRotated.y * sinPitch + yawRotated.z * cosPitch;
-    return yawPitchRotated;
-}
-
-vec3 SampleEnvMap(vec3 dir, uint mapId)
-{
-    vec2 coords;
-    coords.x = (atan(dir.z, dir.x) + PI) / (2*PI);
-    coords.y = acos(dir.y) / PI;
-    return SampleEnvMap(coords, mapId).xyz;
-}
-
-vec3 SampleSceneEnvMap(vec3 dir, uint scene)
-{
-    switch(scene)
-    {
-        case 1: return SampleEnvMap(dir, scene0_envMap);
-        //case 2: return SampleEnvMap(dir, scene1_envMap);
-    }
-    
-    return vec3(0.0f);
-}
-
-vec3 FresnelSchlick(vec3 color, vec3 normal, vec3 outDir)
-{
-    return color + (1.0f - color) * pow((1.0f - dot(normal, outDir)), 5);
-}
-
-float FresnelSchlick(float value, vec3 normal, vec3 outDir)
-{
-    return value + (1.0f - value) * pow(clamp(1.0f - abs(dot(normal, outDir)), 0.0f, 1.0f), 5);
-}
-
-vec3 SampleMicrofacetNormal(float roughness, vec2 xi)
-{
-    float n = 2.0f / (roughness * roughness) - 2.0f;
-    float f1 = max(0.0f, pow(xi.y, 1.0f / (n + 2.0f)));
-    float f2 = sqrt(1.0f - f1);
-    vec3 h;
-    h.x = cos(2*PI*xi.x) * f2;
-    h.y = sin(2*PI*xi.x) * f2;
-    h.z = f1;
-    return h;
-}
-
-vec3 TransformToWorld(vec3 localVec, vec3 normal)
-{
-    // Compute tangent and bitangent vectors
-    vec3 tangent = normalize(abs(normal.z) > 0.999 ? vec3(1, 0, 0) : vec3(0, 0, 1));
-    vec3 bitangent = normalize(cross(normal, tangent));
-    tangent = cross(bitangent, normal);
-    
-    mat3 TBN = mat3(tangent, bitangent, normal);
-    return normalize(TBN * localVec);
-}
-
 void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor);
 void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor);
 void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor);
 
-uint rngState = 0;
+vec3 CameraFrame2World(vec3 v, float yaw, float pitch);
+vec3 SampleEnvMap(vec3 dir, uint mapId);
+vec3 SampleSceneEnvMap(vec3 dir, uint scene);
+vec3 FresnelSchlick(vec3 color, vec3 normal, vec3 outDir);
+float FresnelSchlick(float value, vec3 normal, vec3 outDir);
+vec3 SampleMicrofacetNormal(float exponent, vec3 normal, vec2 rnd);
+
+HitInfo RaySceneIntersection(Ray ray);
 
 void main()
 {
@@ -604,10 +454,11 @@ void main()
     // Make sure we don't reuse pixelIds from one frame to the next
     uint pixelId = uint(gl_FragCoord.y * resolution.x + gl_FragCoord.x);
     uint lastId  = uint(resolution.y * resolution.x + resolution.x);
+    // Initialize rngState (our seed)
     rngState = pixelId + (lastId + 1u) * uint(frameId);
     
     // Randomly nudge the coordinate to achieve antialiasing
-    vec2 nudgedUv = gl_FragCoord.xy + (RandomFloat(rngState) - 0.5f);  // Move 0.5 to the left and right
+    vec2 nudgedUv = gl_FragCoord.xy + (RandomFloat() - 0.5f);  // Move 0.5 to the left and right
     nudgedUv = clamp(nudgedUv, vec2(0.0f), resolution.xy);
     nudgedUv /= resolution.xy;
     
@@ -626,7 +477,7 @@ void main()
     {
         Ray currentRay = cameraRay;
         
-        // Product of all object colors that the ray has hit up to now
+        // Product of all object colors/multiplicative terms that the ray has hit up to now
         vec3 rayColor = vec3(1.0f);
         vec3 incomingLight = vec3(0.0f);
         for(int i = 0; i < NumBounces; ++i)
@@ -666,7 +517,7 @@ void main()
                     vec3 matColor = SampleTexture(hit.texCoords, mat.color).xyz * mat.colorScale;
                     
                     float fresnel = FresnelSchlick(0.04f, hit.normal, outDir);
-                    if(RandomFloat(rngState) < fresnel)  // Rough reflection model
+                    if(RandomFloat() < fresnel)  // Rough reflection model
                         ReflectiveModel(hit, currentRay, incomingLight, rayColor);
                     else
                         MatteModel(hit, currentRay, incomingLight, rayColor);
@@ -701,10 +552,10 @@ void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, ino
     
     currentRay.ori = hit.pos;
     
-    if(RandomFloat(rngState) > matColor.a)
+    if(RandomFloat() > matColor.a)
         return;
     
-    currentRay.dir = normalize(hit.normal + RandomDirection(rngState));
+    currentRay.dir = normalize(hit.normal + RandomDirection());
     
     vec3 emittedLight = SampleTexture(hit.texCoords, mat.emission).xyz * mat.emissionScale;
     
@@ -721,20 +572,19 @@ void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight
     
     currentRay.ori = hit.pos;
     
-    if(RandomFloat(rngState) > matColor.a)
+    if(RandomFloat() > matColor.a)
         return;
     
     float matRoughness = SampleTexture(hit.texCoords, mat.roughness).x * mat.roughnessScale;
     
-    vec2 rnd = vec2(RandomFloat(rngState), RandomFloat(rngState));
+    vec2 rnd = vec2(RandomFloat(), RandomFloat());
+    float exponent = 2.0f / (matRoughness * matRoughness); 
+    vec3 microfacetNormal = SampleMicrofacetNormal(exponent, hit.normal, rnd);
     
-    vec3 localMicrofacetNormal = SampleMicrofacetNormal(matRoughness, rnd);
-    vec3 worldMicrofacetNormal = TransformToWorld(localMicrofacetNormal, hit.normal);
-    
-    vec3 reflection = reflect(currentRay.dir, worldMicrofacetNormal);
+    vec3 reflection = reflect(currentRay.dir, microfacetNormal);
     currentRay.dir = reflection;
     
-    vec3 fresnel = FresnelSchlick(matColor.rgb, worldMicrofacetNormal, outDir);
+    vec3 fresnel = FresnelSchlick(matColor.rgb, microfacetNormal, outDir);
     
     incomingLight += fresnel * rayColor;
     rayColor *= fresnel;
@@ -748,11 +598,11 @@ void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLigh
     
     currentRay.ori = hit.pos;
     
-    if(RandomFloat(rngState) > matColor.a)
+    if(RandomFloat() > matColor.a)
         return;
     
     float fresnel = FresnelSchlick(0.04f, hit.normal, outDir);
-    if(RandomFloat(rngState) < fresnel)
+    if(RandomFloat() < fresnel)
     {
         currentRay.dir = reflect(currentRay.dir, hit.normal);
         
@@ -765,4 +615,203 @@ void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLigh
         
         rayColor *= matColor.xyz;
     }
+}
+
+vec3 CameraFrame2World(vec3 v, float yaw, float pitch)
+{
+    float cosYaw = cos(yaw);
+    float sinYaw = sin(yaw);
+    float cosPitch = cos(pitch);
+    float sinPitch = sin(pitch);
+    
+    vec3 pitchRotated;
+    pitchRotated.x = v.x;
+    pitchRotated.y = v.y * cosPitch - v.z * sinPitch;
+    pitchRotated.z = v.y * sinPitch + v.z * cosPitch;
+    
+    // Apply the yaw rotation (around the y-axis)
+    vec3 yawPitchRotated;
+    yawPitchRotated.x = pitchRotated.x * cosYaw + pitchRotated.z * sinYaw;
+    yawPitchRotated.y = pitchRotated.y;
+    yawPitchRotated.z = -pitchRotated.x * sinYaw + pitchRotated.z * cosYaw;
+    
+    return yawPitchRotated;
+}
+
+vec3 SampleEnvMap(vec3 dir, uint mapId)
+{
+    vec2 coords;
+    coords.x = (atan(dir.z, dir.x) + PI) / (2*PI);
+    coords.y = acos(dir.y) / PI;
+    return SampleEnvMap(coords, mapId).xyz;
+}
+
+vec3 SampleSceneEnvMap(vec3 dir, uint scene)
+{
+    switch(scene)
+    {
+        case 1: return SampleEnvMap(dir, scene1_envMap);
+        case 2: return SampleEnvMap(dir, scene2_envMap);
+        case 3: return SampleEnvMap(dir, scene3_envMap);
+    }
+    
+    return vec3(0.0f);
+}
+
+// From the LittleCG library
+// TODO: Seems a little strong... did i make a mistake somewhere?
+vec3 FresnelSchlick(vec3 color, vec3 normal, vec3 outDir)
+{
+    if(color == vec3(0.0f)) return vec3(0.0f);
+    
+    float cosine = dot(normal, outDir);
+    return color + (1.0f - color) * pow(clamp(1.0f - abs(cosine), 0.0f, 1.0f), 5);
+}
+
+float FresnelSchlick(float value, vec3 normal, vec3 outDir)
+{
+    if(value == 0.0f) return 0.0f;
+    
+    float cosine = dot(normal, outDir);
+    return value + (1.0f - value) * pow(clamp(1.0f - abs(cosine), 0.0f, 1.0f), 5);
+}
+
+// From the littleCG library
+vec3 SampleMicrofacetNormal(float exponent, vec3 normal, vec2 rnd)
+{
+    float z    = pow(rnd.y, 1.0f / (exponent + 1.0f));
+    float r    = sqrt(1.0f - z * z);
+    float phi  = 2.0f * PI * rnd.x;
+    vec3 local = -vec3(r * cos(phi), r * sin(phi), z);
+    local = normalize(local);
+    
+    // Transform from local to world space
+    // https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+    mat3 local2World;
+    {
+        vec3 n  = normalize(normal);
+        float a = -1.0f / (sign(n.z) + n.z);
+        float b = n.x * n.y * a;
+        vec3 x  = vec3(1.0f + sign(n.z) * n.x * n.x * a, sign(n.z) * b, -sign(n.z) * n.x);
+        vec3 y  = vec3(b, sign(n.z) + n.y * n.y * a, -n.y);
+        local2World = mat3(x, y, n);
+    }
+    
+    return local2World * local;
+}
+
+HitInfo RaySceneIntersection(Ray ray)
+{
+    int objKind = -1;
+    int idx     = -1;
+    float dist  = FLT_MAX;
+    uint triId  = 0; // Can be 0 or 1; only used for quads
+    
+    // It seems we can't dynamically pick a static array (using generic code) so this will have to do
+#define CheckSpheres(sphereArray)                                            \
+for(int i = 0; i < sphereArray.length(); ++i)                            \
+{                                                                        \
+RayIntersection inters = RaySphereIntersection(ray, sphereArray[i]); \
+if(inters.hit && inters.dist < dist)                                 \
+{                                                                    \
+dist = inters.dist;                                              \
+idx = i;                                                         \
+objKind = ObjKind_Sphere;                                        \
+}                                                                    \
+}
+    //
+    
+#define CheckQuads(quadArray)                                                \
+for(int i = 0; i < quadArray.length(); ++i)                              \
+{                                                                        \
+RayQuadResult inters = RayQuadIntersection(ray, quadArray[i]);       \
+if(inters.triId > -1 && inters.dist < dist)                          \
+{                                                                    \
+triId = inters.triId;                                            \
+dist = inters.dist;                                              \
+idx = i;                                                         \
+objKind = ObjKind_Quad;                                          \
+}                                                                    \
+}
+    //
+    
+    switch(scene)
+    {
+        case 1:
+        {
+            CheckSpheres(scene1_spheres);
+            CheckQuads(scene1_quads);
+            break;
+        }
+        case 2:
+        {
+            CheckSpheres(scene2_spheres);
+            CheckQuads(scene2_quads);
+            break;
+        }
+        case 3:
+        {
+            CheckSpheres(scene3_spheres);
+            CheckQuads(scene3_quads);
+            break;
+        }
+    }
+#undef CheckSpheres
+#undef CheckQuads
+    
+    if(idx == -1) return defaultHitInfo;
+    
+    // We hit something
+    
+    HitInfo res = defaultHitInfo;
+    res.hit = true;
+    
+    if(objKind == ObjKind_Sphere)
+    {
+        Sphere hitSphere = Sphere(vec3(0.0f), 0.0f, defaultMat);
+        switch(scene)
+        {
+            case 1: hitSphere = scene1_spheres[idx]; break;
+            case 2: hitSphere = scene2_spheres[idx]; break;
+            case 3: hitSphere = scene3_spheres[idx]; break;
+        }
+        
+        vec3 pos = hitSphere.pos;
+        res.pos = ray.ori + ray.dir * dist;
+        res.normal = normalize(res.pos - pos);
+        res.texCoords = Sphere2CubeUV(hitSphere.pos, hitSphere.rad, res.pos);
+        res.mat = hitSphere.mat;
+    }
+    else if(objKind == ObjKind_Quad)
+    {
+        Quad hitQuad = defaultQuad;
+        switch(scene)
+        {
+            case 1: hitQuad = scene1_quads[idx]; break;
+            case 2: hitQuad = scene2_quads[idx]; break;
+            case 3: hitQuad = scene3_quads[idx]; break;
+        }
+        
+        // Get hit triangle
+        vec3 tri[3];
+        vec2 coords[3];
+        if(triId == 0)
+        {
+            tri = vec3[3](hitQuad.p[0], hitQuad.p[1], hitQuad.p[2]);
+            coords = vec2[3](hitQuad.coords[0], hitQuad.coords[1], hitQuad.coords[2]);
+        }
+        else
+        {
+            tri = vec3[3](hitQuad.p[1], hitQuad.p[3], hitQuad.p[2]);
+            coords = vec2[3](hitQuad.coords[1], hitQuad.coords[3], hitQuad.coords[2]);
+        }
+        
+        res.pos = ray.ori + ray.dir * dist;
+        res.normal = normalize(cross(tri[1] - tri[0], tri[2] - tri[0]));
+        vec3 uvw = BarycentricCoords(tri[0], tri[1], tri[2], res.pos);
+        res.texCoords = uvw.x * coords[0] + uvw.y * coords[1] + uvw.z * coords[2];
+        res.mat = hitQuad.mat;
+    }
+    
+    return res;
 }

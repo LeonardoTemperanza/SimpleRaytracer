@@ -59,8 +59,6 @@ struct Quad
 
 const Quad defaultQuad = Quad(vec3[4](vec3(0.0f), vec3(0.0f), vec3(0.0f), vec3(0.0f)), vec2[4](vec2(0.0f), vec2(0.0f), vec2(0.0f), vec2(0.0f)), defaultMat);
 
-// Mesh will have a vertex array and an index array
-
 struct Ray
 {
     vec3 ori;
@@ -359,11 +357,6 @@ vec4 SampleTexture(vec2 coords, uint texId)
 }
 
 // Scenes
-
-// First scene showcases textures,
-// second scene showcases materials,
-// third scene showcases other materials, coverage
-// fourth scene is the classic box
 
 uint scene1_envMap = 2;
 

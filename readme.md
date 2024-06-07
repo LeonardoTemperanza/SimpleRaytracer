@@ -16,4 +16,9 @@ In a Visual Studio Command Prompt, run the build_win.bat script to build and run
 With clang installed, run the build_mac.sh script to build and run.
 
 ### Linux
+Run the following command:
+sudo apt-get install libglfw3 libglfw3-dev
+Or, on Red Hat-based systems:
+sudo dnf install glfw glfw-devel
+
 With gcc installed, run the build_linux.sh script to build and run.

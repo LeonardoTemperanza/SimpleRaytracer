@@ -259,7 +259,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // Required on macOS, apparently
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     
-    GLFWwindow* window = glfwCreateWindow(1200, 1000, "Simple Path Tracer", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1200, 1000, "Simple Raytracer", NULL, NULL);
     assert(window);
     
     // Input callbacks
@@ -272,13 +272,13 @@ int main()
     glfwSwapInterval(1);  // Enable vsync to not fry my GPU (comment this line for faster rendering)
     
     // Greetings message
-    printf("Simple Path Tracer\n\n");
+    printf("Simple Raytracer\n\n");
     printf("Hold right click to look around...\n");
     printf("While holding right click, press WASD to move horizontally...\n");
     printf("While holding right click, press Q/E to move down/up...\n");
     printf("Scroll up/down to adjust exposure...\n");
     printf("Press 1/2/3/4/5 to change the current scene...\n");
-    printf("It would be best (for your GPU) to resize the window to a small resolution ;)\n");
+    printf("It would be best (for your poor GPU) to resize the window to a small resolution ;)\n");
     
     RenderState renderState = InitRendering();
     

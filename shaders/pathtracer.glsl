@@ -8,6 +8,7 @@
 #define DBL_MAX 1.7976931348623158e+308
 #define DBL_MIN 2.2250738585072014e-308
 #define PI      3.1415926
+#define DEG2RAD PI / 180.0f;
 
 // GLSL doesn't have enums?
 #define ObjKind_Sphere 0
@@ -18,7 +19,6 @@
 #define MatType_Reflective  1
 #define MatType_Glossy      2
 #define MatType_Transparent 3
-#define MatType_Translucent 4
 
 struct Material
 {
@@ -312,13 +312,16 @@ vec3 RandomInHemisphere(vec3 normal)
 
 // Rendering
 const uint iterations = 30;
-const uint NumBounces = 5;
-const float fov = 90.0f;
+const uint numBounces = 5;
+const float fov = 90.0f * DEG2RAD;
+const float focalLength = 5.0f;
+const float apertureRadius = 0.001f;
+
 // Materials
 //                                   type           emission                   color                   roughness  textures
 
 const Material emissive   = Material(MatType_Matte, vec3(10.0f, 7.0f, 6.0f),   vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
-const Material strongEmis = Material(MatType_Matte, vec3(90.0f, 70.0f, 60.0f),   vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
+const Material strongEmis = Material(MatType_Matte, vec3(90.0f, 70.0f, 60.0f), vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 0, 0);
 const Material red        = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 0.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material green      = Material(MatType_Matte, vec3(0.0f),                vec3(0.0f, 1.0f, 0.0f), 1.0f,      0, 0, 0);
 const Material blue       = Material(MatType_Matte, vec3(0.0f),                vec3(0.2f, 0.2f, 0.7f), 1.0f,      0, 1, 2);
@@ -328,15 +331,15 @@ const Material reflective = Material(MatType_Reflective, vec3(0.0f),           v
 const Material gReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.1f,      0, 0, 0);
 const Material rReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.2f,      0, 0, 0);
 const Material bReflective = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.0f, 0.5f), 0.3f,      0, 0, 0);
-const Material rReflective2 = Material(MatType_Reflective, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.4f,      0, 0, 0);
-const Material gReflective2 = Material(MatType_Reflective, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.5f,      0, 0, 0);
-const Material wood       = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 1, 2);
+const Material rReflective2 = Material(MatType_Reflective, vec3(0.0f),         vec3(0.5f, 0.0f, 0.0f), 0.4f,      0, 0, 0);
+const Material gReflective2 = Material(MatType_Reflective, vec3(0.0f),         vec3(0.0f, 0.5f, 0.0f), 0.5f,      0, 0, 0);
+const Material wood       = Material(MatType_Reflective, vec3(0.0f),           vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 1, 2);
 const Material glass      = Material(MatType_Transparent, vec3(0.0f),          vec3(0.5f, 0.0f, 0.0f), 0.0f,      0, 0, 0);
 const Material greenGlass = Material(MatType_Transparent, vec3(0.0f),          vec3(0.0f, 0.5f, 0.0f), 0.0f,      0, 0, 0);
 const Material glossy     = Material(MatType_Glossy, vec3(0.0f),               vec3(0.6f, 0.0f, 0.0f), 0.0f,      0, 0, 0);
 const Material checkerBoard = Material(MatType_Matte, vec3(0.0f),              vec3(1.0f),             0.0f,      0, 3, 0);
-const Material leather    = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 4, 5);
-const Material metal      = Material(MatType_Matte, vec3(0.0f),                vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 6, 7);
+const Material leather    = Material(MatType_Reflective, vec3(0.0f),           vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 4, 5);
+const Material metal      = Material(MatType_Reflective, vec3(0.0f),           vec3(1.0f, 1.0f, 1.0f), 1.0f,      0, 6, 7);
 
 // Textures (texture arrays are supported in opengl 4.0)
 uniform sampler2DArray envMaps;
@@ -467,9 +470,10 @@ uniform sampler2D previousFrame;
 
 uniform uint scene;
 
-void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor);
-void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor);
-void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor);
+void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor);
+void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor, inout int iter);
+void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor);
+void GlossyModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor);
 
 vec3 CameraFrame2World(vec3 v, float yaw, float pitch);
 vec3 SampleEnvMap(vec3 dir, uint mapId);
@@ -482,9 +486,6 @@ HitInfo RaySceneIntersection(Ray ray);
 
 void main()
 {
-    float aspectRatio = resolution.x / resolution.y;
-    vec2 uv = gl_FragCoord.xy / resolution.xy;
-    
     // Make sure we don't reuse pixelIds from one frame to the next
     uint pixelId = uint(gl_FragCoord.y * resolution.x + gl_FragCoord.x);
     uint lastId  = uint(resolution.y * resolution.x + resolution.x);
@@ -497,14 +498,22 @@ void main()
     nudgedUv /= resolution.xy;
     
     vec2 coord = 2.0f * nudgedUv - 1.0f;
-    coord.x *= aspectRatio;
+    coord *= tan(fov / 2.0f);
+    coord.y *= resolution.y / resolution.x;
     
-    float fov = 90.0f;
     vec3 cameraLookat = normalize(vec3(coord, 1.0f));
     // Rotate to lookAt vector according to camera rotation
-    vec3 worldCameraLookat = CameraFrame2World(cameraLookat, cameraAngle.x, cameraAngle.y);
+    vec3 worldCameraLookat = normalize(CameraFrame2World(cameraLookat, cameraAngle.x, cameraAngle.y));
     
-    Ray cameraRay = Ray(cameraPos, worldCameraLookat, 0.001f, 10000.0f);
+    // Depth of field effect
+    vec3 focalPoint = cameraPos + worldCameraLookat * focalLength;
+    float radius = sqrt(RandomFloat());
+    float angle  = RandomFloat() * 2 * PI;
+    vec2 apertureOffset = apertureRadius * vec2(cos(angle)*radius, sin(angle)*radius);
+    vec3 apertureSample = cameraPos + CameraFrame2World(vec3(apertureOffset, 0.0f), cameraAngle.x, cameraAngle.y);
+    
+    vec3 rayDirection = normalize(focalPoint - apertureSample);
+    Ray cameraRay = Ray(apertureSample, rayDirection, 0.0001f, 10000.0f);
     
     vec3 finalColor = vec3(0.0f);
     for(int j = 0; j < iterations; ++j)
@@ -513,15 +522,15 @@ void main()
         
         // Product of all object colors/multiplicative terms that the ray has hit up to now
         vec3 rayColor = vec3(1.0f);
-        vec3 incomingLight = vec3(0.0f);
-        for(int i = 0; i < NumBounces; ++i)
+        vec3 luminance = vec3(0.0f);
+        for(int i = 0; i < numBounces; ++i)
         {
             vec3 outDir = -currentRay.dir;
             HitInfo hit = RaySceneIntersection(currentRay);
             
             if(!hit.hit)
             {
-                incomingLight += SampleSceneEnvMap(currentRay.dir, scene) * rayColor;
+                luminance += SampleSceneEnvMap(currentRay.dir, scene) * rayColor;
                 break;
             }
             
@@ -533,35 +542,28 @@ void main()
             {
                 case MatType_Matte:
                 {
-                    MatteModel(hit, currentRay, incomingLight, rayColor);
+                    MatteModel(hit, currentRay, luminance, rayColor);
                     break;
                 }
                 case MatType_Reflective:
                 {
-                    ReflectiveModel(hit, currentRay, incomingLight, rayColor);
+                    ReflectiveModel(hit, currentRay, luminance, rayColor, i);
                     break;
                 }
                 case MatType_Transparent:
                 {
-                    TransparentModel(hit, currentRay, incomingLight, rayColor);
+                    TransparentModel(hit, currentRay, luminance, rayColor);
                     break;
                 }
                 case MatType_Glossy:
                 {
-                    vec3 matColor = SampleTexture(hit.texCoords, mat.color).xyz * mat.colorScale;
-                    
-                    float fresnel = FresnelSchlick(0.04f, hit.normal, outDir);
-                    if(RandomFloat() < fresnel)  // Rough reflection model
-                        ReflectiveModel(hit, currentRay, incomingLight, rayColor);
-                    else
-                        MatteModel(hit, currentRay, incomingLight, rayColor);
-                    
+                    GlossyModel(hit, currentRay, luminance, rayColor);
                     break;
                 }
             }
         }
         
-        finalColor += incomingLight;
+        finalColor += luminance;
     }
     
     finalColor /= float(iterations);
@@ -578,7 +580,7 @@ void main()
         fragColor = curColor;
 }
 
-void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor)
+void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor)
 {
     Material mat = hit.mat;
     
@@ -592,18 +594,15 @@ void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, ino
     currentRay.dir = normalize(hit.normal + RandomDirection());
     
     vec3 emittedLight = SampleTexture(hit.texCoords, mat.emission).xyz * mat.emissionScale;
-    
-    incomingLight += emittedLight * rayColor;
+    luminance += emittedLight * rayColor;
     rayColor *= matColor.xyz;
 }
 
-void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor)
+void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor, inout int iter)
 {
     Material mat = hit.mat;
-    vec3 outDir = -currentRay.dir;
     
     vec4 matColor = SampleTexture(hit.texCoords, mat.color) * vec4(mat.colorScale, 1.0f);
-    
     if(RandomFloat() > matColor.a)
     {
         currentRay.ori = hit.pos;
@@ -613,31 +612,41 @@ void ReflectiveModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight
     float matRoughness = SampleTexture(hit.texCoords, mat.roughness).x * mat.roughnessScale;
     matRoughness = clamp(matRoughness, 0.0f, 1.0f);
     
-    vec3 prevNormal = hit.normal;
-    vec3 normal = hit.normal;
-    if(matRoughness > 0.0001f)
+    vec3 direction = currentRay.dir;  // Current direction caused by internal bounce
+    // Simulate internal bounces and count them as normal bounces, because they're quite expensive
+    while(iter < numBounces)
     {
-        vec2 rnd = vec2(RandomFloat(), RandomFloat());
-        float exponent = 2.0f / (matRoughness * matRoughness);
-        normal = SampleMicrofacetNormal(exponent, hit.normal, rnd);
-    }
-    
-    vec3 reflection = reflect(currentRay.dir, normal);
-    vec3 fresnel = FresnelSchlick(matColor.rgb, normal, outDir);
-    rayColor *= fresnel;
-    
-    // If the reflection ray ends up through the surface
-    // (because the roughness is high and the microsurface
-    // normal is very perturbed) don't modify the ray origin
-    // and the ray direction so that the next hit will be the same
-    if(dot(reflection, prevNormal) > 0.0f)
-    {
-        currentRay.ori = hit.pos;
-        currentRay.dir = reflection;
+        vec3 normal = hit.normal;
+        if(matRoughness > 0.0001f)
+        {
+            vec2 rnd = vec2(RandomFloat(), RandomFloat());
+            float exponent = 2.0f / (matRoughness * matRoughness);
+            normal = SampleMicrofacetNormal(exponent, hit.normal, rnd);
+        }
+        
+        vec3 reflection = reflect(direction, normal);
+        vec3 fresnel = FresnelSchlick(matColor.rgb, normal, -direction);
+        vec3 emittedLight = SampleTexture(hit.texCoords, mat.emission).xyz * mat.emissionScale;
+        luminance += emittedLight * rayColor;
+        rayColor *= fresnel;
+        
+        direction = reflection;
+        
+        // If the reflection ray ends up through the surface
+        // (because the roughness is high and the microfacet
+        // normal is very perturbed) keep following this ray.
+        if(dot(reflection, hit.normal) > 0.0f)
+        {
+            currentRay.ori = hit.pos;
+            currentRay.dir = reflection;
+            break;
+        }
+        
+        ++iter;
     }
 }
 
-void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLight, inout vec3 rayColor)
+void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor)
 {
     Material mat  = hit.mat;
     vec3 outDir   = -currentRay.dir;
@@ -648,20 +657,33 @@ void TransparentModel(HitInfo hit, inout Ray currentRay, inout vec3 incomingLigh
     if(RandomFloat() > matColor.a)
         return;
     
+    vec3 emittedLight = SampleTexture(hit.texCoords, mat.emission).xyz * mat.emissionScale;
+    luminance += emittedLight * rayColor;
+    
+    float fresnel = FresnelSchlick(0.04f, hit.normal, outDir);
+    if(RandomFloat() < fresnel)
+        currentRay.dir = reflect(currentRay.dir, hit.normal);
+    else
+        rayColor *= matColor.xyz;  // Go through the object
+}
+
+void GlossyModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout vec3 rayColor)
+{
+    Material mat = hit.mat;
+    vec3 outDir = -currentRay.dir;
     float fresnel = FresnelSchlick(0.04f, hit.normal, outDir);
     if(RandomFloat() < fresnel)
     {
-        currentRay.dir = reflect(currentRay.dir, hit.normal);
-        
-        incomingLight += matColor.xyz;
-        // Ray color remains unchanged
+        vec4 matColor = SampleTexture(hit.texCoords, mat.color) * vec4(mat.colorScale, 1.0f);
+        if(RandomFloat() <= matColor.a)
+        {
+            vec3 emittedLight = SampleTexture(hit.texCoords, mat.emission).xyz * mat.emissionScale;
+            luminance += emittedLight * rayColor;
+            currentRay.dir = reflect(currentRay.dir, hit.normal);
+        }
     }
-    else  // Going through the object
-    {
-        // Ray direction remains unchanged
-        
-        rayColor *= matColor.xyz;
-    }
+    else
+        MatteModel(hit, currentRay, luminance, rayColor);
 }
 
 vec3 CameraFrame2World(vec3 v, float yaw, float pitch)
@@ -723,25 +745,19 @@ float FresnelSchlick(float value, vec3 normal, vec3 outDir)
     return value + (1.0f - value) * pow(clamp(1.0f - abs(cosine), 0.0f, 1.0f), 5);
 }
 
-// From the littleCG library
 vec3 SampleMicrofacetNormal(float exponent, vec3 normal, vec2 rnd)
 {
-    float z    = pow(rnd.y, 1.0f / (exponent + 1.0f));
-    float r    = sqrt(1.0f - z * z);
-    float phi  = 2.0f * PI * rnd.x;
+    float z = pow(rnd.y, 1.0f / (exponent + 1.0f));
+    float r = sqrt(max(0.0f, 1.0f - z * z));
+    float phi = 2.0f * PI * rnd.x;
     vec3 local = vec3(r * cos(phi), r * sin(phi), z);
     
-    // Transform from local to world space
-    // https://graphics.pixar.com/library/OrthonormalB/paper.pdf
-    mat3 local2World;
-    {
-        vec3 n  = normalize(normal);
-        float a = -1.0f / (sign(n.z) + n.z);
-        float b = n.x * n.y * a;
-        vec3 x  = vec3(1.0f + sign(n.z) * n.x * n.x * a, sign(n.z) * b, -sign(n.z) * n.x);
-        vec3 y  = vec3(b, sign(n.z) + n.y * n.y * a, -n.y);
-        local2World = mat3(x, y, n);
-    }
+    // Transform the microfacet normal to world space
+    vec3 n = normalize(normal);
+    vec3 up = abs(n.z) < 0.999f ? vec3(0.0f, 0.0f, 1.0f) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 tangentX = normalize(cross(up, n));
+    vec3 tangentY = cross(n, tangentX);
+    mat3 local2World = mat3(tangentX, tangentY, n);
     
     return normalize(local2World * local);
 }

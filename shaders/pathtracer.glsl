@@ -305,6 +305,26 @@ vec3 RandomInHemisphere(vec3 normal)
     return dir * sign(dot(normal, dir));
 }
 
+vec3 CosineWeightedRandomDirection(vec3 normal) {
+    float r1 = RandomFloat();
+    float r2 = RandomFloat();
+    
+    // Spherical coordinates
+    float theta = acos(sqrt(1.0f - r1));
+    float phi = 2.0f * PI * r2;
+    
+    // Convert to Cartesian coordinates
+    float x = sin(theta) * cos(phi);
+    float y = sin(theta) * sin(phi);
+    float z = cos(theta);
+    
+    // Transform to world space
+    vec3 w = normal;
+    vec3 u = normalize(cross((abs(w.x) > 0.1f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f)), w));
+    vec3 v = cross(w, u);
+    return normalize(x * u + y * v + z * w);
+}
+
 ////////////////////////////////////////
 // Config
 
@@ -584,7 +604,8 @@ void MatteModel(HitInfo hit, inout Ray currentRay, inout vec3 luminance, inout v
     if(RandomFloat() > matColor.a)
         return;
     
-    currentRay.dir = normalize(hit.normal + RandomDirection());
+    //currentRay.dir = normalize(hit.normal + RandomDirection());
+    currentRay.dir = CosineWeightedRandomDirection(hit.normal);
     
     vec3 emittedLight = SampleTexture(hit.texCoords, mat.emission).xyz * mat.emissionScale;
     luminance += emittedLight * rayColor;
